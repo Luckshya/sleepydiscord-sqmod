@@ -11,7 +11,7 @@ namespace SqDiscord {
 */
 #define SQDISCORD_NAME "Squirrel Discord Module"
 #define SQDISCORD_AUTHOR "Luckshya"
-#define SQDISCORD_COPYRIGHT "None"
+#define SQDISCORD_COPYRIGHT "Copyright (c) 2020 Luckshya"
 #define SQDISCORD_HOST_NAME "SqModDiscordHost"
 #define SQDISCORD_VERSION 001
 #define SQDISCORD_VERSION_STR "0.0.1"
