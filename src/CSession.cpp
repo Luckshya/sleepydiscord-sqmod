@@ -1,12 +1,8 @@
 // ------------------------------------------------------------------------------------------------
 #include "CSession.h"
-
-// ------------------------------------------------------------------------------------------------
 #include "CDiscord.h"
 #include "Common.hpp"
 #include "DEmbed.h"
-
-using namespace SqMod;
 
 // ------------------------------------------------------------------------------------------------
 namespace SqDiscord
@@ -22,9 +18,6 @@ CSession::CSession()
 {
 	try
 	{
-		token = NULL;
-		client = nullptr;
-
 		if (!s_Session && s_Sessions.empty())
 		{
 			s_Session = this;
@@ -86,37 +79,38 @@ void CSession::Update()
 
 	if (!s_ReadySession.empty())
 	{
-		std::lock_guard<std::mutex> lockA(m_ReadyGuard);
+        std::lock_guard<std::mutex> lockA(m_ReadyGuard);
 
-		for (auto itr = s_ReadySession.begin(); itr != s_ReadySession.end(); ++itr)
-		{
-			if ((*itr) != nullptr && (*itr)->client != nullptr)
-			{
-				OnReady();
-			}
-		}
+        for (auto & session : s_ReadySession)
+        {
+            if (session != nullptr && session->client != nullptr)
+            {
+                OnReady();
+            }
+        }
 
 		s_ReadySession.clear();
 	}
 
 	if (!s_Messages.empty())
 	{
-		std::lock_guard<std::mutex> lockB(m_MsgGuard);
+        std::lock_guard<std::mutex> lockB(m_MsgGuard);
 
-		for (auto itr = s_Messages.begin(); itr != s_Messages.end(); ++itr)
-		{
-			OnMessage((itr->channelID).c_str(), (itr->author).c_str(), (itr->authorNick).c_str(), (itr->authorID).c_str(), itr->roles, (itr->message).c_str());
-		}
+        for (auto & message : s_Messages)
+        {
+            OnMessage((message.channelID).c_str(), (message.author).c_str(), (message.authorNick).c_str(), (message.authorID).c_str(), message.roles, (message.message).c_str());
+        }
 
-		s_Messages.clear();
+        s_Messages.clear();
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CSession::Release()
 {
-	m_OnReady.ReleaseGently();
-	m_OnMessage.ReleaseGently();
+	m_OnReady.Release();
+	m_OnMessage.Release();
+	//std::cout << "Script resources released.\n";
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -144,11 +138,7 @@ void CSession::Connect(CCStr token)
 
 	try {
 		// initialize the connection
-		this->client = new CDiscord(token);
-		this->isConnecting = true;
-		this->token = token;
-		this->sleepyThread = new std::thread(&CSession::runSleepy, this);
-		this->client->session = this;
+		this->sleepyThread = new std::thread(&CSession::runSleepy, this, std::string(token));
 	}
 	catch (...) {
 		SqMod_LogErr("An Error has occured at [CSession] function => [Connect]");
@@ -156,9 +146,18 @@ void CSession::Connect(CCStr token)
 }
 
 // ------------------------------------------------------------------------------------------------
-void CSession::runSleepy() {
+void CSession::runSleepy(std::string token) {
 	try {
-		client->run();
+        {
+            std::lock_guard <std::mutex> lock(m_Guard);
+
+            this->isConnecting = true;
+            this->client = new CDiscord(token);
+            this->client->session = this;
+        }
+        //std::cout << "Unlocked A\n";
+
+        client->run();
 	}
 	catch (...) {
 		SqMod_LogErr("An Error has occured at [CSession] function => [runSleepy]");
@@ -171,7 +170,7 @@ void CSession::BindEvent(int evid, Object & env, Function & func)
 	Function & event = GetEvent(evid);
 	
 	if (func.IsNull()) {
-		event.ReleaseGently();
+		event.Release();
 	}
 	
 	else if (env.IsNull()) {
@@ -179,7 +178,7 @@ void CSession::BindEvent(int evid, Object & env, Function & func)
 	}
 	
 	else {
-		event = Function(DefaultVM::Get(), env, func.GetFunc());
+		event = Function(env, func.GetFunc(), SqVM());
 	}
 }
 
@@ -225,17 +224,13 @@ SQInteger CSession::Message(HSQUIRRELVM vm) {
 	}
 
 	StackStrF message(vm, 3);
-	if (SQ_FAILED(message.Proc(true)))
+	if (SQ_FAILED(message.Proc(false)))
 	{
 		return message.mRes; // Propagate the error!
 	}
 
-	else if (std::string(message.mPtr).empty()) {
-		return sq_throwerror(vm, "Trying to send an empty message");
-	}
-
 	try {
-		auto msg = session->client->sendMessage(channelID.mPtr, message.mPtr);
+		auto msg = session->client->sendMessage(channelID.mPtr, message.mPtr, SleepyDiscord::Async);
 	}
 	catch (...) {
 		SqMod_LogErr("An Error has occured at [CSession] function => [Message]");
@@ -248,15 +243,20 @@ SQInteger CSession::Message(HSQUIRRELVM vm) {
 SQInteger CSession::MessageEmbed(HSQUIRRELVM vm) {
 	const int top = sq_gettop(vm);
 
-	if (top <= 1)
-	{
-		return sq_throwerror(vm, "Missing the channel ID value");
-	}
+    if (top <= 1)
+    {
+        return sq_throwerror(vm, "Missing the channel ID value");
+    }
 
-	else if (top <= 2)
-	{
-		return sq_throwerror(vm, "Missing the embed value");
-	}
+    else if (top <= 2)
+    {
+        return sq_throwerror(vm, "Missing the content value");
+    }
+
+    else if (top <= 3)
+    {
+        return sq_throwerror(vm, "Missing the Embed value");
+    }
 
 	CSession * session = nullptr;
 
@@ -285,9 +285,15 @@ SQInteger CSession::MessageEmbed(HSQUIRRELVM vm) {
 		return channelID.mRes; // Propagate the error!
 	}
 
+    StackStrF content(vm, 3);
+    if (SQ_FAILED(channelID.Proc(false)))
+    {
+        return content.mRes; // Propagate the error!
+    }
+
 	Embed * embed = nullptr;
 	try {
-		embed = Sqrat::Var< Embed * >(vm, 3).value;
+		embed = Sqrat::Var< Embed * >(vm, 4).value;
 	}
 	catch (const Sqrat::Exception& e) {
 		return sq_throwerror(vm, e.what());
@@ -298,7 +304,7 @@ SQInteger CSession::MessageEmbed(HSQUIRRELVM vm) {
 	}
 
 	try {
-		auto msg = session->client->sendMessage(channelID.mPtr, "", *(embed->embed));
+		auto msg = session->client->sendMessage(channelID.mPtr, "", *(embed->embed), false, SleepyDiscord::Async);
 	}
 	catch (...) {
 		SqMod_LogErr("An Error has occured at [CSession] function => [Message]");
@@ -358,17 +364,16 @@ SQInteger CSession::GetRoleName(HSQUIRRELVM vm) {
 		std::list<SleepyDiscord::Role> roles = session->client->s_servers.at(std::string(serverID.mPtr)).roles;
 
 		bool found = false;
-		CCStr role_name = NULL;
+		CCStr role_name = nullptr;
 
-		for (SleepyDiscord::Role role : roles) {
-			if (role.ID.string() == std::string(roleID.mPtr)) {
-				found = true;
-				role_name = role.name.c_str();
-				sq_pushstring(vm, role_name, -1);
-				break;
-			}
-		}
-
+        for (const auto & role : roles) {
+            if (role.ID.string() == std::string(roleID.mPtr)) {
+                found = true;
+                role_name = role.name.c_str();
+                sq_pushstring(vm, role_name, -1);
+                break;
+            }
+        }
 
 		if (!found) {
 			return sq_throwerror(vm, "Invalid role ID");
@@ -432,7 +437,6 @@ void CSession::OnReady() {
 	Function & listener = m_OnReady;
 
 	if (listener.IsNull()) {
-		listener.ReleaseGently();
 		return;
 	}
 
@@ -485,15 +489,28 @@ void CSession::OnMessage(CCStr channelID, CCStr author, CCStr authorNick, CCStr 
 // ------------------------------------------------------------------------------------------------
 void CSession::Disconnect()
 {
+	//std::cout << "Disconnecting\n";
 	try
 	{
-		if (isConnected)
+        std::lock_guard<std::mutex> lock(m_Guard);
+
+		if (client != nullptr)
 		{
-			std::lock_guard<std::mutex> lock(m_Guard);
 			client->quit();
-			isConnected = false;
-			isConnecting = false;
+
+			if (sleepyThread != nullptr)
+			{
+				sleepyThread->join();
+				delete sleepyThread;
+				sleepyThread = nullptr;
+			}
 		}
+
+		isConnected		= false;
+		isConnecting	= false;
+
+		delete client;
+		client = nullptr;
 	}
 	catch (...)
 	{
@@ -502,31 +519,31 @@ void CSession::Disconnect()
 }
 
 // ------------------------------------------------------------------------------------------------
-void CSession::Destroy()
-{
-	if (!client)
-	{
-		return;
-	}
+void CSession::Destroy() {
 
+    // Release script resources
+    Release();
+
+    //std::cout << "Destroying\n";
+    {
+        std::lock_guard <std::mutex> lock(m_Guard);
+
+        if (!client) {
+            return;
+        }
+    }
 	// Disconnect the session
 	Disconnect();
-
-	client->session = nullptr;
-	delete client;
-	client = nullptr;
-
-	// Release script resources
-	Release();
 }
 
 // ------------------------------------------------------------------------------------------------
 CSession::~CSession()
 {
+	//std::cout << "Destructor\n";
 	Destroy();
 
 	// Attempt to find our self in the session pool
-	Sessions::iterator itr = std::find(s_Sessions.begin(), s_Sessions.end(), this);
+	auto itr = std::find(s_Sessions.begin(), s_Sessions.end(), this);
 	// Are we in the pool?
 	if (itr != s_Sessions.end())
 	{
@@ -537,6 +554,8 @@ CSession::~CSession()
 	{
 		s_Session = nullptr;
 	}
+
+	//std::cout << "Destructor Done\n";
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -550,10 +569,10 @@ void CSession::Terminate()
 	// Do we have multiple sessions?
 	else if (!s_Sessions.empty())
 	{
-		for (Sessions::iterator itr = s_Sessions.begin(); itr != s_Sessions.end(); ++itr)
-		{
-			(*itr)->Destroy();
-		}
+        for (auto & session : s_Sessions)
+        {
+            session->Destroy();
+        }
 	}
 }
 

@@ -5,11 +5,12 @@
 
 // ------------------------------------------------------------------------------------------------
 #include "Common.hpp"
-#include "Utility.inl"
 #include "CSession.h"
 #include "DEmbed.h"
 
-using namespace SqMod;
+// ------------------------------------------------------------------------------------------------
+#include <cstdio>
+#include <cstdlib>
 
 // ------------------------------------------------------------------------------------------------
 namespace SqDiscord
@@ -65,12 +66,9 @@ static bool OnSquirrelLoad()
         // Unable to proceed!
         return false;
     }
-    // Prevent common null objects from using dead virtual machines
-    NullObject() = Object();
-    NullTable() = Table();
-    NullArray() = Array();
-    NullLightObj() = LightObj();
+    // Prevent common null objects from using dead virtual machine
     NullFunction() = Function();
+
     // Register the module API
     if (RegisterAPI(DefaultVM::Get()))
     {
@@ -91,11 +89,7 @@ static void OnSquirrelTerminate()
 {
     OutputMessage("Terminating: %s", SQDISCORD_NAME);
     // Release null objects just in case
-    NullObject().Release();
-    NullTable().Release();
-    NullArray().Release();
-    NullLightObj().Release();
-    NullFunction().ReleaseGently();
+    NullFunction().Release();
     // Release script resources...
 }
 
@@ -180,6 +174,7 @@ static void OnServerShutdown(void)
     _Clbk->OnServerInitialise       = nullptr;
     _Clbk->OnServerShutdown         = nullptr;
     _Clbk->OnPluginCommand          = nullptr;
+	_Clbk->OnServerFrame			= nullptr;
 }
 
 } // Namespace:: SqDiscord

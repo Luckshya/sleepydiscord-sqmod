@@ -5,10 +5,6 @@
 #include "sleepy_discord/websocketpp_websocket.h"
 
 // ------------------------------------------------------------------------------------------------
-#define FAILURE 0
-#define SUCCESS 1
-
-// ------------------------------------------------------------------------------------------------
 namespace SqDiscord
 {
 // ------------------------------------------------------------------------------------------------
@@ -18,125 +14,157 @@ typedef const char * CCStr;
 class EmbedField
 {
 public:
-	SleepyDiscord::EmbedField * field;
+    std::shared_ptr< SleepyDiscord::EmbedField > field;
 
-	EmbedField();
-	~EmbedField();
+    EmbedField();
 
-	void SetName(CCStr);
-	void SetValue(CCStr);
-	void SetInline(bool);
+    EmbedField(const EmbedField & o) = default;
+    EmbedField(EmbedField && o) = default;
+    EmbedField & operator = (const EmbedField & o) = default;
+    EmbedField & operator = (EmbedField && o) = default;
+
+    void SetName(CCStr);
+    void SetValue(CCStr);
+    void SetInline(bool);
 };
 
 // ------------------------------------------------------------------------------------------------
 class EmbedFooter
 {
-public:
-	SleepyDiscord::EmbedFooter * embedFooter;
+public :
+    std::shared_ptr< SleepyDiscord::EmbedFooter > embedFooter;
 
-	EmbedFooter();
-	~EmbedFooter();
+    EmbedFooter();
 
-	void SetText(CCStr);
-	void SetIconURL(CCStr);
-	void SetProxyIconURL(CCStr);
+    EmbedFooter(const EmbedFooter & o) = default;
+    EmbedFooter(EmbedFooter && o) = default;
+    EmbedFooter & operator = (const EmbedFooter & o) = default;
+    EmbedFooter & operator = (EmbedFooter && o) = default;
+
+    void SetText(CCStr);
+    void SetIconURL(CCStr);
+    void SetProxyIconURL(CCStr);
 };
 
 // ------------------------------------------------------------------------------------------------
 class EmbedImage
 {
-public:
-	SleepyDiscord::EmbedImage * embedImage;
+public :
+    std::shared_ptr< SleepyDiscord::EmbedImage > embedImage;
 
-	EmbedImage();
-	~EmbedImage();
+    EmbedImage();
 
-	void SetURL(CCStr);
-	void SetProxyURL(CCStr);
-	void SetHeight(int64_t);
-	void SetWidth(int64_t);
+    EmbedImage(const EmbedImage & o) = default;
+    EmbedImage(EmbedImage && o) = default;
+    EmbedImage & operator = (const EmbedImage & o) = default;
+    EmbedImage & operator = (EmbedImage && o) = default;
+
+    void SetURL(CCStr);
+    void SetProxyURL(CCStr);
+    void SetHeight(int64_t);
+    void SetWidth(int64_t);
 };
 
 // ------------------------------------------------------------------------------------------------
 class EmbedThumbnail
 {
-public:
-	SleepyDiscord::EmbedThumbnail * embedThumbnail;
+public :
+    std::shared_ptr< SleepyDiscord::EmbedThumbnail > embedThumbnail;
 
-	EmbedThumbnail();
-	~EmbedThumbnail();
+    EmbedThumbnail();
 
-	void SetURL(CCStr);
-	void SetProxyURL(CCStr);
-	void SetHeight(int64_t);
-	void SetWidth(int64_t);
+    EmbedThumbnail(const EmbedThumbnail & o) = default;
+    EmbedThumbnail(EmbedThumbnail && o) = default;
+    EmbedThumbnail & operator = (const EmbedThumbnail & o) = default;
+    EmbedThumbnail & operator = (EmbedThumbnail && o) = default;
+
+    void SetURL(CCStr);
+    void SetProxyURL(CCStr);
+    void SetHeight(int64_t);
+    void SetWidth(int64_t);
 };
 
 // ------------------------------------------------------------------------------------------------
 class EmbedVideo
 {
-public:
-	SleepyDiscord::EmbedVideo * embedVideo;
+public :
+    std::shared_ptr< SleepyDiscord::EmbedVideo > embedVideo;
 
-	EmbedVideo();
-	~EmbedVideo();
+    EmbedVideo();
 
-	void SetURL(CCStr);
-	void SetHeight(int64_t);
-	void SetWidth(int64_t);
+    EmbedVideo(const EmbedVideo & o) = default;
+    EmbedVideo(EmbedVideo && o) = default;
+    EmbedVideo & operator = (const EmbedVideo & o) = default;
+    EmbedVideo & operator = (EmbedVideo && o) = default;
+
+    void SetURL(CCStr);
+    void SetHeight(int64_t);
+    void SetWidth(int64_t);
 };
 
 // ------------------------------------------------------------------------------------------------
 class EmbedProvider
 {
 public:
-	SleepyDiscord::EmbedProvider * embedProvider;
+    std::shared_ptr< SleepyDiscord::EmbedProvider > embedProvider;
 
-	EmbedProvider();
-	~EmbedProvider();
+    EmbedProvider();
 
-	void SetName(CCStr);
-	void SetURL(CCStr);
+    EmbedProvider(const EmbedProvider & o) = default;
+    EmbedProvider(EmbedProvider && o) = default;
+    EmbedProvider & operator = (const EmbedProvider & o) = default;
+    EmbedProvider & operator = (EmbedProvider && o) = default;
+
+    void SetName(CCStr);
+    void SetURL(CCStr);
 };
 
 // ------------------------------------------------------------------------------------------------
 class EmbedAuthor
 {
-public:
-	SleepyDiscord::EmbedAuthor * embedAuthor;
+public :
+    std::shared_ptr< SleepyDiscord::EmbedAuthor > embedAuthor;
 
-	EmbedAuthor();
-	~EmbedAuthor();
+    EmbedAuthor();
 
-	void SetName(CCStr);
-	void SetURL(CCStr);
-	void SetIconURL(CCStr);
-	void SetProxyIconURL(CCStr);
+    EmbedAuthor(const EmbedAuthor & o) = default;
+    EmbedAuthor(EmbedAuthor && o) = default;
+    EmbedAuthor & operator = (const EmbedAuthor & o) = default;
+    EmbedAuthor & operator = (EmbedAuthor && o) = default;
+
+    void SetName(CCStr);
+    void SetURL(CCStr);
+    void SetIconURL(CCStr);
+    void SetProxyIconURL(CCStr);
 };
 
 // ------------------------------------------------------------------------------------------------
 class Embed
 {
 public:
-	SleepyDiscord::Embed * embed;
+    std::shared_ptr< SleepyDiscord::Embed > embed;
 
-	Embed();
-	~Embed();
+    Embed();
 
-	void AddField(EmbedField);
-	void SetTitle(CCStr);
-	void SetType(CCStr);
-	void SetDescription(CCStr);
-	void SetURL(CCStr);
-	void SetTimestamp(CCStr);
-	void SetColor(int32_t);
+    Embed(const Embed & o) = default;
+    Embed(Embed && o) = default;
+    Embed & operator = (const Embed & o) = default;
+    Embed & operator = (Embed && o) = default;
 
-	void SetFooter(EmbedFooter);
-	void SetImage(EmbedImage);
-	void SetThumbnail(EmbedThumbnail);
-	void SetVideo(EmbedVideo);
-	void SetProvider(EmbedProvider);
-	void SetAuthor(EmbedAuthor);
+    void AddField(const EmbedField &);
+    void SetTitle(CCStr);
+    void SetType(CCStr);
+    void SetDescription(CCStr);
+    void SetURL(CCStr);
+    void SetTimestamp(CCStr);
+    void SetColor(int32_t);
+
+    void SetFooter(const EmbedFooter &);
+    void SetImage(const EmbedImage &);
+    void SetThumbnail(const EmbedThumbnail &);
+    void SetVideo(const EmbedVideo &);
+    void SetProvider(const EmbedProvider &);
+    void SetAuthor(const EmbedAuthor &);
 };
 
 // ------------------------------------------------------------------------------------------------

@@ -5,7 +5,6 @@
 #include "CMessage.h"
 
 // ------------------------------------------------------------------------------------------------
-#include <vector>
 #include <thread>
 
 // ------------------------------------------------------------------------------------------------
@@ -14,9 +13,7 @@ class CDiscord;
 // ------------------------------------------------------------------------------------------------
 typedef const char * CCStr;
 
-// guard to lock while disconnecting
-extern std::mutex m_Guard;
-
+// ------------------------------------------------------------------------------------------------
 using namespace Sqrat;
 
 // ------------------------------------------------------------------------------------------------
@@ -25,13 +22,10 @@ namespace SqDiscord
 // ------------------------------------------------------------------------------------------------
 class CSession
 {
-// --------------------------------------------------------------------------------------------
-typedef std::vector< CSession* > Sessions; /* The type of container to store sessions. */
-
 private:
 	CDiscord * client = nullptr;
 
-	void runSleepy();
+	void runSleepy(std::string);
 
 	/* --------------------------------------------------------------------------------------------
 	 * Script callbacks.
@@ -41,12 +35,14 @@ private:
 
 public :
 	// --------------------------------------------------------------------------------------------
-	CCStr token					= NULL;
 	std::thread * sleepyThread	= nullptr;
-	unsigned short int connID	= 0;
+	//unsigned short int connID	= 0;
 	bool isConnecting			= false;
 	bool isConnected			= false;
 	
+	// Mutex lock to guard while connecting and disconnecting
+	std::mutex m_Guard;
+
 	// Mutex lock to guard s_Messages container
 	std::mutex m_MsgGuard;
 
@@ -61,6 +57,9 @@ public :
 
 	CSession();
 	~CSession();
+
+    CSession(const CSession & o) = delete;
+    CSession(CSession && o) = delete;
 
 	static void Process();
 	static void Terminate();
