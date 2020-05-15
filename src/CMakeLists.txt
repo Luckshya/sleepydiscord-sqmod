@@ -29,10 +29,8 @@ target_compile_definitions(SqDiscord PUBLIC SQMOD_PLUGIN_API=1)
 # Determine if build mode
 if(CMAKE_BUILD_TYPE MATCHES Release)
 	target_compile_definitions(SqDiscord PRIVATE NDEBUG=1)
-	message("aassa")
 else()
 	target_compile_definitions(SqDiscord PRIVATE _DEBUG=1 SQMOD_EXCEPTLOC=1)
-	message("aasa")
 endif()
 
 # Link to base libraries

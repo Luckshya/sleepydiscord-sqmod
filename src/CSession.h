@@ -75,6 +75,7 @@ public :
 	static SQInteger Message(HSQUIRRELVM);
 	static SQInteger MessageEmbed(HSQUIRRELVM);
 	static SQInteger GetRoleName(HSQUIRRELVM);
+    static SQInteger EditChannel(HSQUIRRELVM);
 	static SQInteger SetActivity(HSQUIRRELVM);
 
 	void OnReady();
