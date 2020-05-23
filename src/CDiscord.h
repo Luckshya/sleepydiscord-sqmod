@@ -11,8 +11,7 @@
 #include <mutex>
 
 // ------------------------------------------------------------------------------------------------
-namespace SqDiscord
-{
+namespace SqDiscord {
 class CSession;
 } // Namespace - SqDiscord
 
@@ -20,14 +19,24 @@ class CSession;
 class CDiscord : public SleepyDiscord::DiscordClient {
 
 public:
-    using SleepyDiscord::DiscordClient::DiscordClient;
+	using SleepyDiscord::DiscordClient::DiscordClient;
 
-    //std::vector<std::vector<SleepyDiscord::ServerMember>> s_members;
-    std::unordered_map<std::string, SleepyDiscord::Server> s_servers;
-    SqDiscord::CSession * session;
+	//std::vector<std::vector<SleepyDiscord::ServerMember>> s_members;
+	std::unordered_map<std::string, SleepyDiscord::Server> s_servers;
+	SqDiscord::CSession *session;
 
-    void onMessage(SleepyDiscord::Message message) override;
-    void onReady(SleepyDiscord::Ready readyData) override;
-    void onServer(SleepyDiscord::Server server) override;
-    void onEditMember(SleepyDiscord::Snowflake<SleepyDiscord::Server> serverID, SleepyDiscord::User user, std::vector<SleepyDiscord::Snowflake<SleepyDiscord::Role>> roles, std::string nick) override;
+	void onMessage(SleepyDiscord::Message message) override;
+
+	void onReady(SleepyDiscord::Ready readyData) override;
+
+	void onServer(SleepyDiscord::Server server) override;
+
+	void onEditMember(SleepyDiscord::Snowflake<SleepyDiscord::Server> serverID, SleepyDiscord::User user,
+					  std::vector<SleepyDiscord::Snowflake<SleepyDiscord::Role>> roles, std::string nick) override;
+
+	void onError(SleepyDiscord::ErrorCode errorCode, std::string errorMessage) override;
+
+	void onDisconnect() override;
+
+	void onQuit() override;
 };

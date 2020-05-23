@@ -1,7 +1,7 @@
 add_library(SqDiscord SHARED
 		CDiscord.cpp
 		CDiscord.h
-		CMessage.cpp
+		CError.h
 		CMessage.h
 		Common.cpp
 		Common.hpp
@@ -10,7 +10,7 @@ add_library(SqDiscord SHARED
 		CSession.h
 		DEmbed.cpp
 		DEmbed.h
-)
+		)
 
 # Force 32-bit binaries when necessary
 if(FORCE_32BIT_BIN)

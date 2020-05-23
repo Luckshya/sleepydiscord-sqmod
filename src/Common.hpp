@@ -39,9 +39,9 @@ using namespace Sqrat;
 #define SQMOD_STRINGIZEWRAP(x) SQMOD_TRUESTRINGIZE(x)
 
 #if defined(_DEBUG) || defined(SQMOD_EXCEPTLOC)
-    #define SQMOD_MSGLOC(m) (m " =>[" __FILE__ ":" SQMOD_STRINGIZEWRAP(__LINE__) "] ")
+#define SQMOD_MSGLOC(m) (m " =>[" __FILE__ ":" SQMOD_STRINGIZEWRAP(__LINE__) "] ")
 #else
-    #define SQMOD_MSGLOC(m) (m)
+#define SQMOD_MSGLOC(m) (m)
 #endif // _DEBUG
 
 /* ------------------------------------------------------------------------------------------------
@@ -49,13 +49,13 @@ using namespace Sqrat;
 */
 
 #if defined(_DEBUG) || defined(SQMOD_EXCEPTLOC)
-    #define STHROW(e, m, ...) throw e(m " =>[" __FILE__ ":" SQMOD_STRINGIZEWRAP(__LINE__) "] ", ##__VA_ARGS__)
-    #define STHROWF(m, ...) SqThrowF(m " =>[" __FILE__ ":" SQMOD_STRINGIZEWRAP(__LINE__) "] ", ##__VA_ARGS__)
-    #define STHROWLASTF(m, ...) SqThrowLastF(m " =>[" __FILE__ ":" SQMOD_STRINGIZEWRAP(__LINE__) "] ", ##__VA_ARGS__)
+#define STHROW(e, m, ...) throw e(m " =>[" __FILE__ ":" SQMOD_STRINGIZEWRAP(__LINE__) "] ", ##__VA_ARGS__)
+#define STHROWF(m, ...) SqThrowF(m " =>[" __FILE__ ":" SQMOD_STRINGIZEWRAP(__LINE__) "] ", ##__VA_ARGS__)
+#define STHROWLASTF(m, ...) SqThrowLastF(m " =>[" __FILE__ ":" SQMOD_STRINGIZEWRAP(__LINE__) "] ", ##__VA_ARGS__)
 #else
-    #define STHROW(e, m, ...) throw e(m, ##__VA_ARGS__)
-    #define STHROWF(m, ...) SqThrowF(m, ##__VA_ARGS__)
-    #define STHROWLASTF(m, ...) SqThrowLastF(m, ##__VA_ARGS__)
+#define STHROW(e, m, ...) throw e(m, ##__VA_ARGS__)
+#define STHROWF(m, ...) SqThrowF(m, ##__VA_ARGS__)
+#define STHROWLASTF(m, ...) SqThrowLastF(m, ##__VA_ARGS__)
 #endif // _DEBUG
 
 /* ------------------------------------------------------------------------------------------------
@@ -68,49 +68,49 @@ using namespace Sqrat;
 /* ------------------------------------------------------------------------------------------------
  * Proxies to communicate with the server.
 */
-extern PluginFuncs*         _Func;
-extern PluginCallbacks*     _Clbk;
-extern PluginInfo*          _Info;
+extern PluginFuncs *_Func;
+extern PluginCallbacks *_Clbk;
+extern PluginInfo *_Info;
 
 /* ------------------------------------------------------------------------------------------------
  * Generate a formatted string and throw it as a sqrat exception.
 */
-void SqThrowF(const char * str, ...);
+void SqThrowF(const char *str, ...);
 
 /* ------------------------------------------------------------------------------------------------
  * Output a message only if the _DEBUG was defined.
 */
-void OutputDebug(const SQChar * msg, ...);
+void OutputDebug(const SQChar *msg, ...);
 
 /* ------------------------------------------------------------------------------------------------
  * Output a formatted user message to the console.
 */
-void OutputMessage(const SQChar * msg, ...);
+void OutputMessage(const SQChar *msg, ...);
 
 /* ------------------------------------------------------------------------------------------------
  * Output a formatted error message to the console.
 */
-void OutputError(const SQChar * msg, ...);
+void OutputError(const SQChar *msg, ...);
 
 /* ------------------------------------------------------------------------------------------------
  * Validate the module API to make sure we don't run into issues.
 */
-bool CheckModuleAPIVer(const SQChar * ver, const SQChar * mod);
+bool CheckModuleAPIVer(const SQChar *ver, const SQChar *mod);
 
 /* ------------------------------------------------------------------------------------------------
  * Make sure that the module was loaded after the host plug-in.
 */
-bool CheckModuleOrder(PluginFuncs * vcapi, uint32_t mod_id, const SQChar * mod);
+bool CheckModuleOrder(PluginFuncs *vcapi, uint32_t mod_id, const SQChar *mod);
 
 /* ------------------------------------------------------------------------------------------------
  * Used by the modules to import the API from the host plug-in.
 */
-void ImportModuleAPI(PluginFuncs * vcapi, const SQChar * mod);
+void ImportModuleAPI(PluginFuncs *vcapi, const SQChar *mod);
 
 /* ------------------------------------------------------------------------------------------------
  * Retrieve a reference to a null script function.
 */
-Function & NullFunction();
+Function &NullFunction();
 
 /* --------------------------------------------------------------------------------------------
  * Discord Plug-in API
@@ -118,13 +118,18 @@ Function & NullFunction();
 
 // ------------------------------------------------------------------------------------------------
 enum SessEvents {
-    ON_READY = 0,
-    ON_MESSAGE
+	ON_READY = 0,
+	ON_MESSAGE,
+	ON_ERROR,
+	ON_DISCONNECT,
+	ON_QUIT
 };
 
 // ------------------------------------------------------------------------------------------------
-void DRegister_Constants(Sqrat::Table&);
+void DRegister_Constants(Sqrat::Table &);
+
 void DRegister_Enums();
+
 SQInteger Regex_Match(HSQUIRRELVM vm);
 
 
