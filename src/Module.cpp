@@ -7,6 +7,11 @@
 #include "Common.hpp"
 #include "CSession.h"
 #include "DEmbed.h"
+#include "Channel.h"
+#include "Guild.h"
+#include "Role.h"
+#include "ServerMember.h"
+#include "User.h"
 
 // ------------------------------------------------------------------------------------------------
 #include <cstdio>
@@ -31,10 +36,16 @@ static bool RegisterAPI(HSQUIRRELVM vm) {
 
 	CSession::DRegister_CSession(discordcn);
 	DRegister_Constants(discordcn);
+	Channel::Register_Channel(discordcn);
+	Guild::Register_Guild(discordcn);
+	Role::Register_Role(discordcn);
+	ServerMember::Register_ServerMember(discordcn);
+	User::Register_User(discordcn);
+	Message::Register_Message(discordcn);
 
 	Register_Embeds(embeds);
 	discordcn.Bind("Embed", embeds);
-	RootTable(vm).Bind(_SC("SqDiscord"), discordcn);
+	RootTable(vm).Bind("SqDiscord", discordcn);
 
 	RootTable(vm).SquirrelFunc("Regex_Match", Regex_Match);
 
