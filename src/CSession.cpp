@@ -41,8 +41,8 @@ void CSession::Process() {
 	}
 		// Do we have multiple sessions?
 	else if (!s_Sessions.empty()) {
-		for (auto itr = s_Sessions.begin(); itr != s_Sessions.end(); ++itr) {
-			(*itr)->Update();
+		for (auto &session : s_Sessions) {
+			session->Update();
 		}
 	}
 }
@@ -77,8 +77,7 @@ void CSession::Update() {
 		std::lock_guard<std::mutex> lockB(m_MsgGuard);
 
 		for (auto &message : s_Messages) {
-			OnMessage(message.channelID, message.author, message.authorNick, message.authorID, message.roles,
-					  message.message);
+			OnMessage(message);
 		}
 
 		s_Messages.clear();
@@ -349,20 +348,20 @@ SQInteger CSession::GetRoleName(HSQUIRRELVM vm) {
 	try {
 		std::string s_serverID = std::string(serverID.mPtr);
 
-		auto rolesIndex = session->client->s_servers.find(std::string(serverID.mPtr));
+		auto rolesIndex = session->client->s_Servers.find(std::string(serverID.mPtr));
 
-		if (rolesIndex == session->client->s_servers.end()) {
+		if (rolesIndex == session->client->s_Servers.end()) {
 			return sq_throwerror(vm, "Invalid server ID");
 		}
 
-		std::list<SleepyDiscord::Role> &roles = (rolesIndex->second).roles;
+		auto &roles = (rolesIndex->second).Roles;
 		bool found = false;
 		CCStr role_name = nullptr;
 
 		for (const auto &role : roles) {
-			if (role.ID.string() == std::string(roleID.mPtr)) {
+			if (role.second.ID == std::string(roleID.mPtr)) {
 				found = true;
-				role_name = role.name.c_str();
+				role_name = role.second.Name.c_str();
 				sq_pushstring(vm, role_name, -1);
 				break;
 			}
@@ -475,7 +474,7 @@ SQInteger CSession::SetActivity(HSQUIRRELVM vm) {
 }
 
 // ------------------------------------------------------------------------------------------------
-bool CSession::GetErrorEventEnabled() {
+bool CSession::GetErrorEventEnabled() const {
 	return errorEventEnabled;
 }
 
@@ -507,22 +506,15 @@ void CSession::OnReady() {
 }
 
 // ------------------------------------------------------------------------------------------------
-void CSession::OnMessage(CString channelID, CString author, CString authorNick, CString authorID, s_Roles roles,
-						 CString message) {
+void CSession::OnMessage(SqDiscord::Message *message) {
 	Function &listener = m_OnMessage;
-
-	Array rolesArray(DefaultVM::Get(), roles.size());
-
-	for (unsigned int i = 0; i < roles.size(); ++i) {
-		rolesArray.SetValue(i, roles.at(i).string().c_str());
-	}
 
 	if (listener.IsNull()) {
 		return;
 	}
 
 	try {
-		listener.Execute(channelID, author, authorNick, authorID, rolesArray, message);
+		listener.Execute(message);
 	}
 	catch (Sqrat::Exception &e) {
 		SqMod_LogErr("Discord event [%s] => Squirrel error [%s]", "MESSAGE", e.what());
@@ -680,25 +672,53 @@ void CSession::Terminate() {
 }
 
 // ------------------------------------------------------------------------------------------------
+LightObj CSession::GetGuild(const std::string &serverID) {
+	std::lock_guard<std::mutex> lck(m_ServersGuard);
+
+	auto serverIndex = client->s_Servers.find(serverID);
+
+	if (serverIndex == client->s_Servers.end()) {
+		return LightObj{};
+	}
+
+	return LightObj(SqTypeIdentity<Guild>{}, SqVM(), serverIndex->second);
+}
+
+// ------------------------------------------------------------------------------------------------
+LightObj CSession::GetOtherChannel(const std::string &channelID) {
+	std::lock_guard<std::mutex> lck(m_OtherChannelsGuard);
+
+	auto channelIndex = client->s_OtherChannels.find(channelID);
+
+	if (channelIndex == client->s_OtherChannels.end()) {
+		return LightObj{};
+	}
+
+	return LightObj(SqTypeIdentity<Channel>{}, SqVM(), channelIndex->second);
+}
+
+// ------------------------------------------------------------------------------------------------
 void CSession::DRegister_CSession(Table &discordcn) {
 	using namespace Sqrat;
 
 	discordcn.Bind("Session",
-				   Class<CSession, NoCopy<CSession> >(discordcn.GetVM(), "Session")
+				   Class < CSession, NoCopy < CSession > > (discordcn.GetVM(), "Session")
 
-						   .Ctor()
+					.Ctor()
 
-						   .Prop("ErrorEventEnabled", &CSession::GetErrorEventEnabled, &CSession::SetErrorEventEnabled)
+					.Prop("ErrorEventEnabled", &CSession::GetErrorEventEnabled, &CSession::SetErrorEventEnabled)
 
-						   .Func("Connect", &CSession::Connect)
-						   .Func("Bind", &CSession::BindEvent)
-						   .Func("Disconnect", &CSession::Disconnect)
+					.Func("Connect", &CSession::Connect)
+					.Func("Bind", &CSession::BindEvent)
+					.Func("Disconnect", &CSession::Disconnect)
+					.Func("GetGuild", &CSession::GetGuild)
+					.Func("GetOtherChannel", &CSession::GetOtherChannel)
 
-						   .SquirrelFunc("Message", &CSession::Message)
-						   .SquirrelFunc("MessageEmbed", &CSession::MessageEmbed)
-						   .SquirrelFunc("GetRoleName", &CSession::GetRoleName)
-						   .SquirrelFunc("EditChannel", &CSession::EditChannel)
-						   .SquirrelFunc("SetActivity", &CSession::SetActivity)
+					.SquirrelFunc("Message", &CSession::Message)
+					.SquirrelFunc("MessageEmbed", &CSession::MessageEmbed)
+					.SquirrelFunc("GetRoleName", &CSession::GetRoleName)
+					.SquirrelFunc("EditChannel", &CSession::EditChannel)
+					.SquirrelFunc("SetActivity", &CSession::SetActivity)
 	);
 }
 } //Namespace:: SqDiscord

@@ -2,19 +2,18 @@
 
 // ------------------------------------------------------------------------------------------------
 #include "Common.hpp"
-#include "CMessage.h"
+#include "Message.h"
 #include "CError.h"
+#include "Guild.h"
 
 // ------------------------------------------------------------------------------------------------
 #include <thread>
-
-// ------------------------------------------------------------------------------------------------
-class CDiscord;
+#include <mutex>
 
 // ------------------------------------------------------------------------------------------------
 typedef const char *CCStr;
 typedef const std::string &CString;
-typedef const std::vector<SleepyDiscord::Snowflake<SleepyDiscord::Role>> &s_Roles;
+typedef const std::vector<std::string> &s_Roles;
 
 // ------------------------------------------------------------------------------------------------
 using namespace Sqrat;
@@ -44,6 +43,7 @@ public :
 	bool isConnecting = false;
 	bool isConnected = false;
 	bool errorEventEnabled = false;
+	bool internalCacheEnabled = true;
 
 	// Mutex lock to guard while connecting and disconnecting
 	std::mutex m_Guard;
@@ -63,8 +63,14 @@ public :
 	// Mutex lock to guard s_Quits container
 	std::mutex m_QuitsGuard;
 
+	// Mutex lock to guard s_Servers container
+	std::mutex m_ServersGuard;
+
+	// Mutex lock to guard s_OtherChannels container
+	std::mutex m_OtherChannelsGuard;
+
 	// Container to hold messages
-	std::vector<CMessage> s_Messages;
+	std::vector<Message *> s_Messages;
 
 	// Container to hold readyEvent to be called in a Queue
 	std::vector<CSession *> s_ReadySession;
@@ -104,7 +110,11 @@ public :
 
 	Function &GetEvent(int);
 
-	bool GetErrorEventEnabled();
+	LightObj GetGuild(const std::string &serverID);
+
+	LightObj GetOtherChannel(const std::string &channelID);
+
+	bool GetErrorEventEnabled() const;
 
 	void SetErrorEventEnabled(bool toggle);
 
@@ -120,7 +130,7 @@ public :
 
 	void OnReady();
 
-	void OnMessage(CString, CString, CString, CString, s_Roles, CString);
+	void OnMessage(SqDiscord::Message *message);
 
 	void OnError(int, CString);
 
