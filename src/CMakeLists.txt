@@ -1,7 +1,9 @@
 add_library(SqDiscord SHARED
         CDiscord.cpp
         CDiscord.h
-        CError.h
+        EventHandler.h
+	    Constants.h
+	    Constants.cpp
         Common.cpp
         Common.hpp
         Module.cpp
@@ -19,7 +21,8 @@ add_library(SqDiscord SHARED
         Channel.h
         User.cpp
         User.h
-        Message.cpp Message.h)
+        Message.cpp
+        Message.h)
 
 # Force 32-bit binaries when necessary
 if (FORCE_32BIT_BIN)
@@ -64,6 +67,7 @@ else (WIN32)
 endif (WIN32)
 
 target_include_directories(SqDiscord
-        PRIVATE
-        ${PROJECT_SOURCE_DIR}/src
+        PUBLIC
+        ${CMAKE_SOURCE_DIR}/src/
+        ${CMAKE_SOURCE_DIR}/readerwriterqueue/
         )
