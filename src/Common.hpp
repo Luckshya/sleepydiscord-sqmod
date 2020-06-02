@@ -14,6 +14,11 @@
 // ------------------------------------------------------------------------------------------------
 class CDiscord;
 
+namespace DiscordEvent {
+template< class T > struct EventType;
+class EventHandler;
+}
+
 // ------------------------------------------------------------------------------------------------
 namespace SqDiscord {
 
@@ -22,7 +27,7 @@ using namespace Sqrat;
 
 // ------------------------------------------------------------------------------------------------
 typedef const char *CCStr;
-typedef SQChar *CSStr;
+typedef const SQChar *CSStr;
 
 // ------------------------------------------------------------------------------------------------
 class CSession;
@@ -121,27 +126,5 @@ void ImportModuleAPI(PluginFuncs *vcapi, const SQChar *mod);
  * Retrieve a reference to a null script function.
 */
 Function &NullFunction();
-
-/* --------------------------------------------------------------------------------------------
- * Discord Plug-in API
-*/
-
-// ------------------------------------------------------------------------------------------------
-enum SessEvents {
-	ON_READY = 0,
-	ON_MESSAGE,
-	ON_ERROR,
-	ON_DISCONNECT,
-	ON_QUIT
-};
-
-// ------------------------------------------------------------------------------------------------
-void DRegister_Constants(Sqrat::Table &);
-
-void DRegister_Enums();
-
-SQInteger Regex_Match(HSQUIRRELVM vm);
-
-
 } // Namespace:: SqDiscord
 

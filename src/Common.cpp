@@ -8,7 +8,6 @@
 #endif // SQMOD_OS_WINDOWS
 // ------------------------------------------------------------------------------------------------
 #include <cstdarg>
-#include <regex>
 
 // ------------------------------------------------------------------------------------------------
 namespace SqDiscord {
@@ -31,7 +30,7 @@ void SqThrowF(const SQChar *str, ...) {
 	// Write the requested contents
 	if (std::vsnprintf(g_Buffer, sizeof(g_Buffer), str, args) < 0) {
 		// Write a generic message at least
-		std::strcpy(g_Buffer, "Unknown error has occurred");
+		strcpy_s(g_Buffer, sizeof g_Buffer, "Unknown error has occurred");
 	}
 	// Finalize the argument list
 			va_end(args);
@@ -246,82 +245,4 @@ Function &NullFunction() {
 	f.Release();
 	return f;
 }
-
-/* --------------------------------------------------------------------------------------------
- * Discord Plug-in API
-*/
-
-// ------------------------------------------------------------------------------------------------
-struct myEnum {
-	const char *identifier;
-	int value;
-};
-
-// ------------------------------------------------------------------------------------------------
-static const myEnum discord_Events[] = {
-		{"Ready",      ON_READY},
-		{"Message",    ON_MESSAGE},
-		{"Error",      ON_ERROR},
-		{"Disconnect", ON_DISCONNECT},
-		{"Quit",       ON_QUIT}
-};
-
-// ------------------------------------------------------------------------------------------------
-void DRegisterEnum(HSQUIRRELVM vm, const char *name, const myEnum *data, int count) {
-	using namespace Sqrat;
-
-	Enumeration e(vm);
-
-	for (int n = 0; n < count; ++n, ++data) {
-		e.Const(data->identifier, data->value);
-	}
-
-	ConstTable(vm).Enum(name, e);
-}
-
-// ------------------------------------------------------------------------------------------------
-void DRegister_Constants(Sqrat::Table &discordcn) {
-	DRegisterEnum(discordcn.GetVM(), "SqDiscordEvent", discord_Events, 5);
-}
-
-// ------------------------------------------------------------------------------------------------
-SQInteger Regex_Match(HSQUIRRELVM vm) {
-	const int top = sq_gettop(vm);
-
-	if (top <= 1) {
-		return sq_throwerror(vm, "Missing the regex string");
-	} else if (top <= 2) {
-		return sq_throwerror(vm, "Missing the string value");
-	}
-
-	StackStrF regex_string(vm, 2);
-	if (SQ_FAILED(regex_string.Proc(false))) {
-		return regex_string.mRes; // Propagate the error!
-	}
-
-	StackStrF value_string(vm, 3);
-	if (SQ_FAILED(value_string.Proc(true))) {
-		return value_string.mRes; // Propagate the error!
-	}
-
-	try {
-		std::regex r(regex_string.mPtr);
-		std::string s(value_string.mPtr);
-
-		std::smatch string_flag;
-
-		bool matches = std::regex_match(s, r);
-
-		sq_pushbool(vm, matches);
-	}
-	catch (std::regex_error &e) {
-		return sq_throwerror(vm, e.what());
-	}
-	catch (...) {
-		return sq_throwerror(vm, "unknown error");
-	}
-
-	return 1;
-}
-
 } // Namespace:: SqDiscord
