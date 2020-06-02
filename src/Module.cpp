@@ -58,7 +58,7 @@ static bool RegisterAPI(HSQUIRRELVM vm) {
 */
 static bool OnSquirrelLoad() {
 	// Make sure that we have a valid module API
-	if (!SqMod_GetSquirrelVM) {
+	if (!SqMod_GetSquirrelVM()) {
 		OutputError("%s: Cannot obtain the Squirrel virtual machine without the module API", SQDISCORD_NAME);
 		// Unable to proceed!
 		return false;
