@@ -11,6 +11,8 @@
 #include <thread>
 #include <mutex>
 
+using namespace DiscordEvent;
+
 // ------------------------------------------------------------------------------------------------
 class CDiscord : public SleepyDiscord::DiscordClient {
 
@@ -59,4 +61,7 @@ public:
 	void onDisconnect() override;
 
 	void onQuit() override;
+
+	template< class T, class ...A >
+	void AddEventObject(EventType<T> t, bool imp, A&&... a);
 };

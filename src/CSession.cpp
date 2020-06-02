@@ -1,7 +1,11 @@
 // ------------------------------------------------------------------------------------------------
 #include "CSession.h"
+
+// ------------------------------------------------------------------------------------------------
+#include <utility>
 #include "CDiscord.h"
 #include "DEmbed.h"
+#include "EventHandler.h"
 
 // ------------------------------------------------------------------------------------------------
 namespace SqDiscord {
@@ -27,6 +31,8 @@ CSession::CSession() {
 		else {
 			s_Sessions.push_back(this);
 		}
+
+		s_EventHandler = new EventHandler();
 	}
 	catch (...) {
 		SqMod_LogErr("An Error has occured at [CSession] function => [CSession]");
@@ -61,61 +67,12 @@ void CSession::Update() {
 		return;
 	}
 
-	if (!s_ReadySession.empty()) {
-		std::lock_guard<std::mutex> lockA(m_ReadyGuard);
-
-		for (auto &session : s_ReadySession) {
-			if (session != nullptr && session->client != nullptr) {
-				OnReady();
-			}
-		}
-
-		s_ReadySession.clear();
+	if (internalCacheEnabled) {
+		while (Servers_Queue.try_dequeue(LatestCopy_Servers)) {};
+		while (OtherChannels_Queue.try_dequeue(LatestCopy_OtherChannels)) {};
 	}
 
-	if (!s_Messages.empty()) {
-		std::lock_guard<std::mutex> lockB(m_MsgGuard);
-
-		for (auto &message : s_Messages) {
-			OnMessage(message);
-		}
-
-		s_Messages.clear();
-	}
-
-	if (!s_Errors.empty()) {
-		std::lock_guard<std::mutex> lockB(m_ErrorGuard);
-
-		for (auto &error : s_Errors) {
-			OnError(error.ErrorCode, error.ErrorMessage);
-		}
-
-		s_Errors.clear();
-	}
-
-	if (!s_Disconnects.empty()) {
-		std::lock_guard<std::mutex> lockA(m_DisconnectsGuard);
-
-		for (auto &session : s_Disconnects) {
-			if (session != nullptr && session->client != nullptr) {
-				OnDisconnect();
-			}
-		}
-
-		s_Disconnects.clear();
-	}
-
-	if (!s_Quits.empty()) {
-		std::lock_guard<std::mutex> lockA(m_QuitsGuard);
-
-		for (auto &session : s_Quits) {
-			if (session != nullptr && session->client != nullptr) {
-				OnQuit();
-			}
-		}
-
-		s_Quits.clear();
-	}
+	s_EventHandler->PushEvents(this);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -125,6 +82,19 @@ void CSession::Release() {
 	m_OnError.Release();
 	m_OnDisconnect.Release();
 	m_OnQuit.Release();
+	m_OnServer.Release();
+	m_OnServerEdit.Release();
+	m_OnServerDelete.Release();
+	m_OnMember.Release();
+	m_OnMemberEdit.Release();
+	m_OnMemberRemove.Release();
+	m_OnChannel.Release();
+	m_OnChannelEdit.Release();
+	m_OnChannelDelete.Release();
+	m_OnRole.Release();
+	m_OnRoleEdit.Release();
+	m_OnRoleDelete.Release();
+	m_OnUserEdit.Release();
 	//std::cout << "Script resources released.\n";
 }
 
@@ -141,7 +111,32 @@ Function &CSession::GetEvent(int evid) {
 			return m_OnDisconnect;
 		case ON_QUIT:
 			return m_OnQuit;
-
+		case ON_SERVER:
+			return m_OnServer;
+		case ON_SERVER_EDIT:
+			return m_OnServerEdit;
+		case ON_SERVER_DELETE:
+			return m_OnServerDelete;
+		case ON_MEMBER:
+			return m_OnMember;
+		case ON_MEMBER_EDIT:
+			return m_OnMemberEdit;
+		case ON_MEMBER_REMOVE:
+			return m_OnMemberRemove;
+		case ON_CHANNEL:
+			return m_OnChannel;
+		case ON_CHANNEL_EDIT:
+			return m_OnChannelEdit;
+		case ON_CHANNEL_DELETE:
+			return m_OnChannelDelete;
+		case ON_ROLE:
+			return m_OnRole;
+		case ON_ROLE_EDIT:
+			return m_OnRoleEdit;
+		case ON_ROLE_DELETE:
+			return m_OnRoleDelete;
+		case ON_USER_EDIT:
+			return m_OnUserEdit;
 		default:
 			break;
 	}
@@ -175,7 +170,7 @@ void CSession::runSleepy(std::string token) {
 			std::lock_guard<std::mutex> lock(m_Guard);
 
 			this->isConnecting = true;
-			this->client = new CDiscord(token);
+			this->client = new CDiscord(std::move(token));
 			this->client->session = this;
 		}
 		//std::cout << "Unlocked A\n";
@@ -183,7 +178,7 @@ void CSession::runSleepy(std::string token) {
 		client->run();
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CSession] function => [runSleepy]");
+		OutputError("An Error has occured at [CSession] function => [runSleepy]");
 	}
 }
 
@@ -202,7 +197,7 @@ void CSession::BindEvent(int evid, Object &env, Function &func) {
 
 // ------------------------------------------------------------------------------------------------
 SQInteger CSession::Message(HSQUIRRELVM vm) {
-	const int top = sq_gettop(vm);
+	SQInteger top = sq_gettop(vm);
 
 	if (top <= 1) {
 		return sq_throwerror(vm, "Missing the channel ID value");
@@ -249,7 +244,7 @@ SQInteger CSession::Message(HSQUIRRELVM vm) {
 
 // ------------------------------------------------------------------------------------------------
 SQInteger CSession::MessageEmbed(HSQUIRRELVM vm) {
-	const int top = sq_gettop(vm);
+	SQInteger top = sq_gettop(vm);
 
 	if (top <= 1) {
 		return sq_throwerror(vm, "Missing the channel ID value");
@@ -309,78 +304,8 @@ SQInteger CSession::MessageEmbed(HSQUIRRELVM vm) {
 }
 
 // ------------------------------------------------------------------------------------------------
-SQInteger CSession::GetRoleName(HSQUIRRELVM vm) {
-	const int top = sq_gettop(vm);
-
-	if (top <= 1) {
-		return sq_throwerror(vm, "Missing the server ID value");
-	} else if (top <= 2) {
-		return sq_throwerror(vm, "Missing the role ID value");
-	}
-
-	CSession *session = nullptr;
-
-	try {
-		session = Sqrat::Var<CSession *>(vm, 1).value;
-	}
-	catch (const Sqrat::Exception &e) {
-		return sq_throwerror(vm, e.what());
-	}
-
-	if (!session) {
-		return sq_throwerror(vm, "Invalid session instance");
-	} else if (!session->client) {
-		return sq_throwerror(vm, "Invalid Discord client");
-	} else if (!session->isConnected) {
-		return sq_throwerror(vm, "Session is not connected");
-	}
-
-	StackStrF serverID(vm, 2);
-	if (SQ_FAILED(serverID.Proc(false))) {
-		return serverID.mRes; // Propagate the error!
-	}
-
-	StackStrF roleID(vm, 3);
-	if (SQ_FAILED(roleID.Proc(false))) {
-		return roleID.mRes; // Propagate the error!
-	}
-
-	try {
-		std::string s_serverID = std::string(serverID.mPtr);
-
-		auto rolesIndex = session->client->s_Servers.find(std::string(serverID.mPtr));
-
-		if (rolesIndex == session->client->s_Servers.end()) {
-			return sq_throwerror(vm, "Invalid server ID");
-		}
-
-		auto &roles = (rolesIndex->second).Roles;
-		bool found = false;
-		CCStr role_name = nullptr;
-
-		for (const auto &role : roles) {
-			if (role.second.ID == std::string(roleID.mPtr)) {
-				found = true;
-				role_name = role.second.Name.c_str();
-				sq_pushstring(vm, role_name, -1);
-				break;
-			}
-		}
-
-		if (!found) {
-			return sq_throwerror(vm, "Invalid role ID");
-		}
-	}
-	catch (...) {
-		SqMod_LogErr("An Error has occured at [CSession] function => [RoleName]");
-	}
-
-	return 1;
-}
-
-// ------------------------------------------------------------------------------------------------
 SQInteger CSession::EditChannel(HSQUIRRELVM vm) {
-	const int top = sq_gettop(vm);
+	SQInteger top = sq_gettop(vm);
 
 	if (top <= 1) {
 		return sq_throwerror(vm, "Missing the channel ID value");
@@ -435,7 +360,7 @@ SQInteger CSession::EditChannel(HSQUIRRELVM vm) {
 
 // ------------------------------------------------------------------------------------------------
 SQInteger CSession::SetActivity(HSQUIRRELVM vm) {
-	const int top = sq_gettop(vm);
+	SQInteger top = sq_gettop(vm);
 
 	if (top <= 1) {
 		return sq_throwerror(vm, "Missing the activity value");
@@ -474,6 +399,80 @@ SQInteger CSession::SetActivity(HSQUIRRELVM vm) {
 }
 
 // ------------------------------------------------------------------------------------------------
+SQInteger CSession::GetRoleName(HSQUIRRELVM vm) {
+	SQInteger top = sq_gettop(vm);
+
+	if (top <= 1) {
+		return sq_throwerror(vm, "Missing the server ID value");
+	}
+	else if (top <= 2) {
+		return sq_throwerror(vm, "Missing the role ID value");
+	}
+
+	CSession *session = nullptr;
+
+	try {
+		session = Sqrat::Var<CSession *>(vm, 1).value;
+	}
+	catch (const Sqrat::Exception &e) {
+		return sq_throwerror(vm, e.what());
+	}
+
+	if (!session) {
+		return sq_throwerror(vm, "Invalid session instance");
+	}
+	else if (!session->client) {
+		return sq_throwerror(vm, "Invalid Discord client");
+	}
+	else if (!session->isConnected) {
+		return sq_throwerror(vm, "Session is not connected");
+	}
+
+	StackStrF serverID(vm, 2);
+	if (SQ_FAILED(serverID.Proc(false))) {
+		return serverID.mRes; // Propagate the error!
+	}
+
+	StackStrF roleID(vm, 3);
+	if (SQ_FAILED(roleID.Proc(false))) {
+		return roleID.mRes; // Propagate the error!
+	}
+
+	try {
+		std::string s_serverID = std::string(serverID.mPtr);
+
+		auto rolesIndex = session->LatestCopy_Servers.find(std::string(serverID.mPtr));
+
+		if (rolesIndex == session->LatestCopy_Servers.end()) {
+			sq_pushnull(vm);
+			return 1;
+		}
+
+		auto &roles = (rolesIndex->second).Roles;
+		bool found = false;
+		CCStr role_name = nullptr;
+
+		for (const auto &role : roles) {
+			if (role.second.ID == std::string(roleID.mPtr)) {
+				found = true;
+				role_name = role.second.Name.c_str();
+				sq_pushstring(vm, role_name, -1);
+				break;
+			}
+		}
+
+		if (!found) {
+			return sq_throwerror(vm, "Invalid role ID");
+		}
+	}
+	catch (...) {
+		SqMod_LogErr("An Error has occured at [CSession] function => [RoleName]");
+	}
+
+	return 1;
+}
+
+// ------------------------------------------------------------------------------------------------
 bool CSession::GetErrorEventEnabled() const {
 	return errorEventEnabled;
 }
@@ -484,119 +483,27 @@ void CSession::SetErrorEventEnabled(bool toggle) {
 }
 
 // ------------------------------------------------------------------------------------------------
-void CSession::OnReady() {
-	Function &listener = m_OnReady;
-
-	if (listener.IsNull()) {
-		return;
-	}
-
-	try {
-		listener.Execute();
-	}
-	catch (Sqrat::Exception &e) {
-		SqMod_LogErr("Discord event [%s] => Squirrel error [%s]", "READY", e.what());
-	}
-	catch (const std::exception &e) {
-		SqMod_LogErr("Discord event [%s] => Program error [%s]", "READY", e.what());
-	}
-	catch (...) {
-		SqMod_LogErr("Discord event [%s] => Unknown error", "READY");
-	}
+bool CSession::GetInternalCacheEnabled() const {
+	return internalCacheEnabled;
 }
 
 // ------------------------------------------------------------------------------------------------
-void CSession::OnMessage(SqDiscord::Message *message) {
-	Function &listener = m_OnMessage;
-
-	if (listener.IsNull()) {
+void CSession::SetInternalCacheEnabled(bool toggle) {
+	if (isConnected || isConnecting) {
+		STHROWF("Cannot toggle internal cache while already connected or connecting");
 		return;
 	}
 
-	try {
-		listener.Execute(message);
-	}
-	catch (Sqrat::Exception &e) {
-		SqMod_LogErr("Discord event [%s] => Squirrel error [%s]", "MESSAGE", e.what());
-	}
-	catch (const std::exception &e) {
-		SqMod_LogErr("Discord event [%s] => Program error [%s]", "MESSAGE", e.what());
-	}
-	catch (...) {
-		SqMod_LogErr("Discord event [%s] => Unknown error", "MESSAGE");
-	}
-}
-
-// ------------------------------------------------------------------------------------------------
-void CSession::OnError(int errorCode, CString errorMessage) {
-	Function &listener = m_OnError;
-
-	if (listener.IsNull()) {
-		return;
-	}
-
-	try {
-		listener.Execute(errorCode, errorMessage);
-	}
-	catch (Sqrat::Exception &e) {
-		SqMod_LogErr("Discord event [%s] => Squirrel error [%s]", "ERROR", e.what());
-	}
-	catch (const std::exception &e) {
-		SqMod_LogErr("Discord event [%s] => Program error [%s]", "ERROR", e.what());
-	}
-	catch (...) {
-		SqMod_LogErr("Discord event [%s] => Unknown error", "ERROR");
-	}
-}
-
-// ------------------------------------------------------------------------------------------------
-void CSession::OnDisconnect() {
-	Function &listener = m_OnDisconnect;
-
-	if (listener.IsNull()) {
-		return;
-	}
-
-	try {
-		listener.Execute();
-	}
-	catch (Sqrat::Exception &e) {
-		SqMod_LogErr("Discord event [%s] => Squirrel error [%s]", "DISCONNECT", e.what());
-	}
-	catch (const std::exception &e) {
-		SqMod_LogErr("Discord event [%s] => Program error [%s]", "DISCONNECT", e.what());
-	}
-	catch (...) {
-		SqMod_LogErr("Discord event [%s] => Unknown error", "DISCONNECT");
-	}
-}
-
-// ------------------------------------------------------------------------------------------------
-void CSession::OnQuit() {
-	Function &listener = m_OnQuit;
-
-	if (listener.IsNull()) {
-		return;
-	}
-
-	try {
-		listener.Execute();
-	}
-	catch (Sqrat::Exception &e) {
-		SqMod_LogErr("Discord event [%s] => Squirrel error [%s]", "QUIT", e.what());
-	}
-	catch (const std::exception &e) {
-		SqMod_LogErr("Discord event [%s] => Program error [%s]", "QUIT", e.what());
-	}
-	catch (...) {
-		SqMod_LogErr("Discord event [%s] => Unknown error", "QUIT");
-	}
+	internalCacheEnabled = toggle;
 }
 
 // ------------------------------------------------------------------------------------------------
 void CSession::Disconnect() {
 	//std::cout << "Disconnecting\n";
 	try {
+		// Update events last time
+		Update();
+
 		std::lock_guard<std::mutex> lock(m_Guard);
 
 		if (client != nullptr) {
@@ -623,19 +530,14 @@ void CSession::Disconnect() {
 // ------------------------------------------------------------------------------------------------
 void CSession::Destroy() {
 
+	// Disconnect the session
+	Disconnect();
+
 	// Release script resources
 	Release();
 
-	//std::cout << "Destroying\n";
-	{
-		std::lock_guard<std::mutex> lock(m_Guard);
-
-		if (!client) {
-			return;
-		}
-	}
-	// Disconnect the session
-	Disconnect();
+	delete s_EventHandler;
+	s_EventHandler = nullptr;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -673,11 +575,9 @@ void CSession::Terminate() {
 
 // ------------------------------------------------------------------------------------------------
 LightObj CSession::GetGuild(const std::string &serverID) {
-	std::lock_guard<std::mutex> lck(m_ServersGuard);
+	auto serverIndex = LatestCopy_Servers.find(serverID);
 
-	auto serverIndex = client->s_Servers.find(serverID);
-
-	if (serverIndex == client->s_Servers.end()) {
+	if (serverIndex == LatestCopy_Servers.end()) {
 		return LightObj{};
 	}
 
@@ -686,11 +586,9 @@ LightObj CSession::GetGuild(const std::string &serverID) {
 
 // ------------------------------------------------------------------------------------------------
 LightObj CSession::GetOtherChannel(const std::string &channelID) {
-	std::lock_guard<std::mutex> lck(m_OtherChannelsGuard);
+	auto channelIndex = LatestCopy_OtherChannels.find(channelID);
 
-	auto channelIndex = client->s_OtherChannels.find(channelID);
-
-	if (channelIndex == client->s_OtherChannels.end()) {
+	if (channelIndex == LatestCopy_OtherChannels.end()) {
 		return LightObj{};
 	}
 
@@ -707,6 +605,7 @@ void CSession::DRegister_CSession(Table &discordcn) {
 					.Ctor()
 
 					.Prop("ErrorEventEnabled", &CSession::GetErrorEventEnabled, &CSession::SetErrorEventEnabled)
+					.Prop("InternalCacheEnabled", &CSession::GetInternalCacheEnabled, &CSession::SetInternalCacheEnabled)
 
 					.Func("Connect", &CSession::Connect)
 					.Func("Bind", &CSession::BindEvent)

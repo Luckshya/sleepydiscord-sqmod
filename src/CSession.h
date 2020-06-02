@@ -3,12 +3,12 @@
 // ------------------------------------------------------------------------------------------------
 #include "Common.hpp"
 #include "Message.h"
-#include "CError.h"
 #include "Guild.h"
 
 // ------------------------------------------------------------------------------------------------
 #include <thread>
 #include <mutex>
+#include <readerwriterqueue.h>
 
 // ------------------------------------------------------------------------------------------------
 typedef const char *CCStr;
@@ -17,6 +17,8 @@ typedef const std::vector<std::string> &s_Roles;
 
 // ------------------------------------------------------------------------------------------------
 using namespace Sqrat;
+using namespace DiscordEvent;
+using namespace moodycamel;
 
 // ------------------------------------------------------------------------------------------------
 namespace SqDiscord {
@@ -27,6 +29,17 @@ private:
 
 	void runSleepy(std::string);
 
+public :
+	// --------------------------------------------------------------------------------------------
+	std::thread *sleepyThread = nullptr;
+	EventHandler *s_EventHandler = nullptr;
+
+	//unsigned short int connID	= 0;
+	bool isConnecting = false;
+	bool isConnected = false;
+	bool errorEventEnabled = false;
+	bool internalCacheEnabled = true;
+
 	/* --------------------------------------------------------------------------------------------
 	 * Script callbacks.
 	*/
@@ -35,54 +48,28 @@ private:
 	Function m_OnError;
 	Function m_OnDisconnect;
 	Function m_OnQuit;
-
-public :
-	// --------------------------------------------------------------------------------------------
-	std::thread *sleepyThread = nullptr;
-	//unsigned short int connID	= 0;
-	bool isConnecting = false;
-	bool isConnected = false;
-	bool errorEventEnabled = false;
-	bool internalCacheEnabled = true;
+	Function m_OnServer;
+	Function m_OnServerEdit;
+	Function m_OnServerDelete;
+	Function m_OnMember;
+	Function m_OnMemberEdit;
+	Function m_OnMemberRemove;
+	Function m_OnChannel;
+	Function m_OnChannelEdit;
+	Function m_OnChannelDelete;
+	Function m_OnRole;
+	Function m_OnRoleEdit;
+	Function m_OnRoleDelete;
+	Function m_OnUserEdit;
 
 	// Mutex lock to guard while connecting and disconnecting
 	std::mutex m_Guard;
 
-	// Mutex lock to guard s_Messages container
-	std::mutex m_MsgGuard;
+	std::unordered_map<std::string, SqDiscord::Channel> LatestCopy_OtherChannels;
+	std::unordered_map<std::string, SqDiscord::Guild> LatestCopy_Servers;
 
-	// Mutex lock to guard s_ReadySessions container
-	std::mutex m_ReadyGuard;
-
-	// Mutex lock to guard s_Errors container
-	std::mutex m_ErrorGuard;
-
-	// Mutex lock to guard s_Disconnects container
-	std::mutex m_DisconnectsGuard;
-
-	// Mutex lock to guard s_Quits container
-	std::mutex m_QuitsGuard;
-
-	// Mutex lock to guard s_Servers container
-	std::mutex m_ServersGuard;
-
-	// Mutex lock to guard s_OtherChannels container
-	std::mutex m_OtherChannelsGuard;
-
-	// Container to hold messages
-	std::vector<Message *> s_Messages;
-
-	// Container to hold readyEvent to be called in a Queue
-	std::vector<CSession *> s_ReadySession;
-
-	// Container to hold error messages
-	std::vector<CError> s_Errors;
-
-	// Container to hold Disconnect Event to be called in a Queue
-	std::vector<CSession *> s_Disconnects;
-
-	// Container to hold Quit Event to be called in a Queue
-	std::vector<CSession *> s_Quits;
+	ReaderWriterQueue< std::unordered_map<std::string, SqDiscord::Channel> > OtherChannels_Queue;
+	ReaderWriterQueue< std::unordered_map<std::string, SqDiscord::Guild> > Servers_Queue;
 
 	CSession();
 
@@ -118,25 +105,19 @@ public :
 
 	void SetErrorEventEnabled(bool toggle);
 
+	bool GetInternalCacheEnabled() const;
+
+	void SetInternalCacheEnabled(bool toggle);
+
 	static SQInteger Message(HSQUIRRELVM);
 
 	static SQInteger MessageEmbed(HSQUIRRELVM);
 
-	static SQInteger GetRoleName(HSQUIRRELVM);
+	static SQInteger GetRoleName(HSQUIRRELVM vm);
 
 	static SQInteger EditChannel(HSQUIRRELVM);
 
 	static SQInteger SetActivity(HSQUIRRELVM);
-
-	void OnReady();
-
-	void OnMessage(SqDiscord::Message *message);
-
-	void OnError(int, CString);
-
-	void OnDisconnect();
-
-	void OnQuit();
 
 	static void DRegister_CSession(Table &);
 };

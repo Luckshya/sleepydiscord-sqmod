@@ -1,6 +1,7 @@
 // ------------------------------------------------------------------------------------------------
 #include "Common.hpp"
 #include "CDiscord.h"
+#include "EventHandler.h"
 
 // ------------------------------------------------------------------------------------------------
 #include <list>
@@ -8,33 +9,40 @@
 
 // ------------------------------------------------------------------------------------------------
 using namespace SqDiscord;
+using namespace DiscordEvent;
+
+template< class T, class ...A >
+void CDiscord::AddEventObject(EventType<T> t, bool imp, A&&... a) {
+	if (!session->s_EventHandler) return;
+	if (!imp && session->internalCacheEnabled) return;
+
+	session->s_EventHandler->AddObject(t, std::forward<A>(a)...);
+}
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onMessage(SleepyDiscord::Message message) {
-	//std::lock_guard<std::mutex> lock(session->m_Guard);
 	try {
-		Guild server;
+		std::lock_guard<std::mutex> lock(session->m_Guard);
 
-		std::lock_guard<std::mutex> guard(this->session->m_MsgGuard);
-		this->session->s_Messages.push_back(new Message(message));
+		AddEventObject(EventType<CMessage>{}, true, message);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onMessage]");
+		OutputError("An Error has occured at [CDiscord] function => [onMessage]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onReady(SleepyDiscord::Ready readyData) {
-	//std::lock_guard<std::mutex> lock(session->m_Guard);
 	try {
-		this->session->isConnected = true;
-		this->session->isConnecting = false;
+		session->isConnected = true;
+		session->isConnecting = false;
 
-		std::lock_guard<std::mutex> guard(this->session->m_ReadyGuard);
-		this->session->s_ReadySession.push_back(this->session);
+		std::lock_guard<std::mutex> lock(session->m_Guard);
+
+		AddEventObject(EventType<CReady>{}, true);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onReady]");
+		OutputError("An Error has occured at [CDiscord] function => [onReady]");
 	}
 }
 
@@ -46,98 +54,107 @@ void CDiscord::onError(SleepyDiscord::ErrorCode errorCode, std::string errorMess
 		else
 			std::cout << "Error: " + errorMessage + '\n';
 	} else {
-		//std::lock_guard<std::mutex> lock(session->m_Guard);
 		try {
-			std::lock_guard<std::mutex> guard(this->session->m_ErrorGuard);
-			this->session->s_Errors.emplace_back(errorCode, errorMessage);
+			std::lock_guard<std::mutex> lock(session->m_Guard);
+
+			AddEventObject(EventType<CError>{}, true, errorCode, errorMessage);
 		}
 		catch (...) {
-			SqMod_LogErr("An Error has occured at [CDiscord] function => [onError]");
+			OutputError("An Error has occured at [CDiscord] function => [onError]");
 		}
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onDisconnect() {
-	//std::lock_guard<std::mutex> lock(session->m_Guard);
 	try {
-		std::lock_guard<std::mutex> guard(this->session->m_DisconnectsGuard);
-		this->session->s_Disconnects.emplace_back(session);
+		AddEventObject(EventType<CDisconnect>{}, true);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onDisconnect]");
+		OutputError("An Error has occured at [CDiscord] function => [onDisconnect]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onQuit() {
-	//std::lock_guard<std::mutex> lock(session->m_Guard);
 	try {
-		std::lock_guard<std::mutex> guard(this->session->m_QuitsGuard);
-		this->session->s_Quits.emplace_back(session);
+		AddEventObject(EventType<CQuit>{}, true);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onQuit]");
+		OutputError("An Error has occured at [CDiscord] function => [onQuit]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onServer(SleepyDiscord::Server server) {
-	//std::lock_guard<std::mutex> lock(session->m_Guard);
 	try {
-		std::lock_guard<std::mutex> lck(this->session->m_ServersGuard);
+		std::lock_guard<std::mutex> lock(session->m_Guard);
+
 		s_Servers[server.ID.string()] = Guild(server);
+		session->Servers_Queue.enqueue(s_Servers);
+
+		AddEventObject(EventType<CGuild>{}, false, server);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onServer]");
+		OutputError("An Error has occured at [CDiscord] function => [onServer]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onEditServer(SleepyDiscord::Server server) {
 	try {
-		std::lock_guard<std::mutex> lck(this->session->m_ServersGuard);
+		std::lock_guard<std::mutex> lock(session->m_Guard);
+
 		s_Servers[server.ID.string()] = Guild(server);
+		session->Servers_Queue.enqueue(s_Servers);
+
+		AddEventObject(EventType<CGuildEdit>{}, false, server);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onEditServer]");
+		OutputError("An Error has occured at [CDiscord] function => [onEditServer]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onDeleteServer(SleepyDiscord::UnavailableServer server) {
 	try {
-		std::lock_guard<std::mutex> lck(this->session->m_ServersGuard);
+		std::lock_guard<std::mutex> lock(session->m_Guard);
+
 		s_Servers.erase(server.ID.string());
+		session->Servers_Queue.enqueue(s_Servers);
+
+		AddEventObject(EventType<CGuildDelete>{}, false, server);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onDeleteServer]");
+		OutputError("An Error has occured at [CDiscord] function => [onDeleteServer]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onMember(SleepyDiscord::Snowflake<SleepyDiscord::Server> _serverID, SleepyDiscord::ServerMember member) {
 	try {
-		auto &serverID = _serverID.string();
+		std::lock_guard<std::mutex> lock(session->m_Guard);
 
-		std::lock_guard<std::mutex> lck(this->session->m_ServersGuard);
+		auto &serverID = _serverID.string();
 		auto index = s_Servers.find(serverID);
 
 		if (index != s_Servers.end()) {
 			index->second.Members[member.ID.string()] = member;
 		}
+		session->Servers_Queue.enqueue(s_Servers);
+
+		AddEventObject(EventType<CMember>{}, false, _serverID.string(), member);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onMember]");
+		OutputError("An Error has occured at [CDiscord] function => [onMember]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onEditMember(SleepyDiscord::Snowflake<SleepyDiscord::Server> serverID, SleepyDiscord::User user,
 							std::vector<SleepyDiscord::Snowflake<SleepyDiscord::Role>> roles, std::string nick) {
-	//std::lock_guard<std::mutex> lock(session->m_Guard);
 	try {
-		std::lock_guard<std::mutex> lck(this->session->m_ServersGuard);
+		std::lock_guard<std::mutex> lock(session->m_Guard);
 		auto serverIndex = s_Servers.find(serverID.string());
 		if (serverIndex == s_Servers.end()) return;
 
@@ -151,133 +168,148 @@ void CDiscord::onEditMember(SleepyDiscord::Snowflake<SleepyDiscord::Server> serv
 			member.Nick = nick;
 			member.UpdateRoles(roles);
 		}
+		session->Servers_Queue.enqueue(s_Servers);
+
+		AddEventObject(EventType<CMemberEdit>{}, false, serverID.string(), user, roles, nick);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onEditMember]");
+		OutputError("An Error has occured at [CDiscord] function => [onEditMember]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onRemoveMember(SleepyDiscord::Snowflake<SleepyDiscord::Server> _serverID, SleepyDiscord::User user) {
 	try {
+		std::lock_guard<std::mutex> lock(session->m_Guard);
 		auto &serverID = _serverID.string();
-
-		std::lock_guard<std::mutex> lck(this->session->m_ServersGuard);
 		auto serverIndex = s_Servers.find(serverID);
 
 		if (serverIndex != s_Servers.end()) {
 			auto &members = serverIndex->second.Members;
 			members.erase(user.ID.string());
 		}
+		session->Servers_Queue.enqueue(s_Servers);
+
+		AddEventObject(EventType<CMemberRemove>{}, false, _serverID.string(), user);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onRemoveMember]");
+		OutputError("An Error has occured at [CDiscord] function => [onRemoveMember]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onChannel(SleepyDiscord::Channel channel) {
 	try {
+		std::lock_guard<std::mutex> lock(session->m_Guard);
+
 		auto &serverID = channel.serverID.string();
+		auto index = s_Servers.find(serverID);
 
-		{
-			std::lock_guard<std::mutex> lck(this->session->m_ServersGuard);
-			auto index = s_Servers.find(serverID);
-
-			if (index != s_Servers.end()) {
-				index->second.Channels[channel.ID.string()] = channel;
-				return;
-			}
+		if (index != s_Servers.end()) {
+			index->second.Channels[channel.ID.string()] = channel;
+			return;
 		}
+		session->Servers_Queue.enqueue(s_Servers);
 
-		std::lock_guard<std::mutex> lck(this->session->m_OtherChannelsGuard);
 		s_OtherChannels[channel.ID.string()] = channel;
+		session->OtherChannels_Queue.enqueue(s_OtherChannels);
+
+		AddEventObject(EventType<CChannel>{}, false, channel);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onChannel]");
+		OutputError("An Error has occured at [CDiscord] function => [onChannel]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onEditChannel(SleepyDiscord::Channel channel) {
 	try {
+		std::lock_guard<std::mutex> lock(session->m_Guard);
+
 		auto &serverID = channel.serverID.string();
+		auto index = s_Servers.find(serverID);
 
-		{
-			std::lock_guard<std::mutex> lck(this->session->m_ServersGuard);
-			auto index = s_Servers.find(serverID);
-
-			if (index != s_Servers.end()) {
-				auto &server = index->second;
-				server.Channels[channel.ID.string()] = channel;
-				return;
-			}
+		if (index != s_Servers.end()) {
+			auto &server = index->second;
+			server.Channels[channel.ID.string()] = channel;
+			return;
 		}
+		session->Servers_Queue.enqueue(s_Servers);
 
-		std::lock_guard<std::mutex> lck(this->session->m_OtherChannelsGuard);
 		s_OtherChannels[channel.ID.string()] = channel;
+		session->OtherChannels_Queue.enqueue(s_OtherChannels);
+
+		AddEventObject(EventType<CChannelEdit>{}, false, channel);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onEditChannel]");
+		OutputError("An Error has occured at [CDiscord] function => [onEditChannel]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onDeleteChannel(SleepyDiscord::Channel channel) {
 	try {
+		std::lock_guard<std::mutex> lock(session->m_Guard);
+
 		auto &serverID = channel.serverID.string();
 
-		{
-			std::lock_guard<std::mutex> lck(this->session->m_ServersGuard);
-			auto serverIndex = s_Servers.find(serverID);
+		auto serverIndex = s_Servers.find(serverID);
 
-			if (serverIndex != s_Servers.end()) {
-				auto &channels = serverIndex->second.Channels;
-				channels.erase(channel.ID.string());
-				return;
-			}
+		if (serverIndex != s_Servers.end()) {
+			auto &channels = serverIndex->second.Channels;
+			channels.erase(channel.ID.string());
+			return;
 		}
+		session->Servers_Queue.enqueue(s_Servers);
 
-		std::lock_guard<std::mutex> lck(this->session->m_OtherChannelsGuard);
 		s_OtherChannels.erase(channel.ID.string());
+		session->OtherChannels_Queue.enqueue(s_OtherChannels);
+
+		AddEventObject(EventType<CChannelDelete>{}, false, channel);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onDeleteChannel]");
+		OutputError("An Error has occured at [CDiscord] function => [onDeleteChannel]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onRole(SleepyDiscord::Snowflake<SleepyDiscord::Server> _serverID, SleepyDiscord::Role role) {
 	try {
-		auto &serverID = _serverID.string();
+		std::lock_guard<std::mutex> lock(session->m_Guard);
 
-		std::lock_guard<std::mutex> lck(this->session->m_ServersGuard);
+		auto &serverID = _serverID.string();
 		auto index = s_Servers.find(serverID);
 
 		if (index != s_Servers.end()) {
 			index->second.Roles[role.ID.string()] = role;
 		}
+		session->Servers_Queue.enqueue(s_Servers);
+
+		AddEventObject(EventType<CRole>{}, false, _serverID.string(), role);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onRole]");
+		OutputError("An Error has occured at [CDiscord] function => [onRole]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onEditRole(SleepyDiscord::Snowflake<SleepyDiscord::Server> _serverID, SleepyDiscord::Role role) {
 	try {
-		auto &serverID = _serverID.string();
+		std::lock_guard<std::mutex> lock(session->m_Guard);
 
-		std::lock_guard<std::mutex> lck(this->session->m_ServersGuard);
+		auto &serverID = _serverID.string();
 		auto index = s_Servers.find(serverID);
 
 		if (index != s_Servers.end()) {
 			auto &server = index->second;
 			server.Roles[role.ID.string()] = role;
 		}
+		session->Servers_Queue.enqueue(s_Servers);
+
+		AddEventObject(EventType<CRoleEdit>{}, false, _serverID.string(), role);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onEditRole]");
+		OutputError("An Error has occured at [CDiscord] function => [onEditRole]");
 	}
 }
 
@@ -285,38 +317,40 @@ void CDiscord::onEditRole(SleepyDiscord::Snowflake<SleepyDiscord::Server> _serve
 void CDiscord::onDeleteRole(SleepyDiscord::Snowflake<SleepyDiscord::Server> _serverID,
 							SleepyDiscord::Snowflake<SleepyDiscord::Role> roleID) {
 	try {
-		auto &serverID = _serverID.string();
+		std::lock_guard<std::mutex> lock(session->m_Guard);
 
-		std::lock_guard<std::mutex> lck(this->session->m_ServersGuard);
+		auto &serverID = _serverID.string();
 		auto serverIndex = s_Servers.find(serverID);
 
 		if (serverIndex != s_Servers.end()) {
 			auto &roles = serverIndex->second.Roles;
 			roles.erase(roleID.string());
 		}
+		session->Servers_Queue.enqueue(s_Servers);
+
+		AddEventObject(EventType<CRoleDelete>{}, false, _serverID.string(), roleID.string());
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onDeleteRole]");
+		OutputError("An Error has occured at [CDiscord] function => [onDeleteRole]");
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void CDiscord::onEditUser(SleepyDiscord::User user) {
 	try {
+		std::lock_guard<std::mutex> lock(session->m_Guard);
+
 		auto &userID = user.ID.string();
 
-		{
-			std::lock_guard<std::mutex> lck(this->session->m_ServersGuard);
-			for (auto &server : s_Servers) {
-				auto memberIndex = server.second.Members.find(userID);
+		for (auto &server : s_Servers) {
+			auto memberIndex = server.second.Members.find(userID);
 
-				if (memberIndex != server.second.Members.end()) {
-					memberIndex->second.User = user;
-				}
+			if (memberIndex != server.second.Members.end()) {
+				memberIndex->second.User = user;
 			}
 		}
+		session->Servers_Queue.enqueue(s_Servers);
 
-		std::lock_guard<std::mutex> lck(this->session->m_OtherChannelsGuard);
 		for (auto &channel : s_OtherChannels) {
 			auto userIndex = channel.second.Recipients.find(userID);
 
@@ -324,8 +358,11 @@ void CDiscord::onEditUser(SleepyDiscord::User user) {
 				userIndex->second = user;
 			}
 		}
+		session->OtherChannels_Queue.enqueue(s_OtherChannels);
+
+		AddEventObject(EventType<CUserEdit>{}, false, user);
 	}
 	catch (...) {
-		SqMod_LogErr("An Error has occured at [CDiscord] function => [onEditUser]");
+		OutputError("An Error has occured at [CDiscord] function => [onEditUser]");
 	}
 }
