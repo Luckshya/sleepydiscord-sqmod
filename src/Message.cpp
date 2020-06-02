@@ -23,6 +23,7 @@ Message::Message(SleepyDiscord::Message &message) {
 
 // ------------------------------------------------------------------------------------------------
 void Message::UpdateUserMentions(std::vector<SleepyDiscord::User> &mentions) {
+	Mentions.clear();
 	for (auto &user : mentions) {
 		Mentions.emplace_back(user);
 	}
@@ -30,6 +31,7 @@ void Message::UpdateUserMentions(std::vector<SleepyDiscord::User> &mentions) {
 
 // ------------------------------------------------------------------------------------------------
 void Message::UpdateRoleMentions(std::vector<SleepyDiscord::Snowflake<SleepyDiscord::User>> &mentions) {
+	MentionRoles.clear();
 	for (auto &roleID : mentions) {
 		MentionRoles.emplace_back(roleID.string());
 	}
@@ -51,8 +53,11 @@ std::string Message::GetChannelID() const {
 }
 
 // ------------------------------------------------------------------------------------------------
-std::string Message::GetServerID() const {
-	return ServerID;
+CSStr Message::GetServerID() const {
+	if(!ServerID.empty()) {
+		return ServerID.c_str();
+	}
+	return nullptr;
 }
 
 // ------------------------------------------------------------------------------------------------

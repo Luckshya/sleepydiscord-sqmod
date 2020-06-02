@@ -20,6 +20,7 @@ Channel::Channel(SleepyDiscord::Channel &channel) {
 
 // ------------------------------------------------------------------------------------------------
 void Channel::UpdateRecipients(std::vector<SleepyDiscord::User> &recipients) {
+	Recipients.clear();
 	for (auto &recipient : recipients) {
 		Recipients[recipient.ID.string()] = recipient;
 	}
@@ -35,8 +36,11 @@ SQInteger Channel::GetType() const {
 }
 
 // ------------------------------------------------------------------------------------------------
-std::string Channel::GetServerID() const {
-	return ServerID;
+CSStr Channel::GetServerID() const {
+	if(!ServerID.empty()) {
+		return ServerID.c_str();
+	}
+	return nullptr;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -67,7 +71,7 @@ SQInteger Channel::GetRecipientCount() const {
 // ------------------------------------------------------------------------------------------------
 Array Channel::GetRecipientsArray() {
 	if (Recipients.empty()) {
-		return Object(); //returns null
+		return Array(SqVM()); //returns null
 	}
 
 	Array arr(SqVM(), Recipients.size());
@@ -85,7 +89,7 @@ Array Channel::GetRecipientsArray() {
 
 Table Channel::GetRecipientsTable() {
 	if (Recipients.empty()) {
-		return Object(); //returns null
+		return Table(SqVM());
 	}
 
 	Table tbl(SqVM(), Recipients.size());

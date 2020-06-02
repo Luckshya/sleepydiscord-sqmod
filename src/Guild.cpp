@@ -16,6 +16,7 @@ Guild::Guild(SleepyDiscord::Server &server) {
 
 // ------------------------------------------------------------------------------------------------
 void Guild::UpdateRoles(std::list<SleepyDiscord::Role> &roles) {
+	Roles.clear();
 	for (auto &role : roles) {
 		Roles[role.ID.string()] = role;
 	}
@@ -23,6 +24,7 @@ void Guild::UpdateRoles(std::list<SleepyDiscord::Role> &roles) {
 
 // ------------------------------------------------------------------------------------------------
 void Guild::UpdateMembers(std::list<SleepyDiscord::ServerMember> &members) {
+	Members.clear();
 	for (auto &member : members) {
 		Members[member.ID.string()] = member;
 	}
@@ -30,6 +32,7 @@ void Guild::UpdateMembers(std::list<SleepyDiscord::ServerMember> &members) {
 
 // ------------------------------------------------------------------------------------------------
 void Guild::UpdateChannels(std::list<SleepyDiscord::Channel> &channels) {
+	Channels.clear();
 	for (auto &channel : channels) {
 		Channels[channel.ID.string()] = channel;
 	}
@@ -83,7 +86,7 @@ Array Guild::GetRolesArray() {
 // ------------------------------------------------------------------------------------------------
 Table Guild::GetRolesTable() {
 	if (Roles.empty()) {
-		return Table();
+		return Table(SqVM());
 	}
 
 	Table tbl(SqVM(), Roles.size());
@@ -122,7 +125,7 @@ Array Guild::GetMembersArray() {
 // ------------------------------------------------------------------------------------------------
 Table Guild::GetMembersTable() {
 	if (Members.empty()) {
-		return Table();
+		return Table(SqVM());
 	}
 
 	Table tbl(SqVM(), Members.size());
@@ -161,7 +164,7 @@ Array Guild::GetChannelsArray() {
 // ------------------------------------------------------------------------------------------------
 Table Guild::GetChannelsTable() {
 	if (Channels.empty()) {
-		return Table();
+		return Table(SqVM());
 	}
 
 	Table tbl(SqVM(), Channels.size());

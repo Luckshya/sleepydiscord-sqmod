@@ -17,6 +17,7 @@ ServerMember::ServerMember(SleepyDiscord::ServerMember &member) {
 
 // ------------------------------------------------------------------------------------------------
 void ServerMember::UpdateRoles(std::vector<SleepyDiscord::Snowflake<SleepyDiscord::Role>> &roles) {
+	Roles.clear();
 	for (auto &role : roles) {
 		Roles.push_back(role.string());
 	}

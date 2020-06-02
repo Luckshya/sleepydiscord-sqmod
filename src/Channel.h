@@ -1,13 +1,14 @@
 #pragma once
 
 // ------------------------------------------------------------------------------------------------
-#include <vector>
+#include <unordered_map>
 #include <string>
 #include <sleepy_discord/channel.h>
 
 // ------------------------------------------------------------------------------------------------
 #include "User.h"
 #include "Common.hpp"
+#include "Constants.h"
 
 // ------------------------------------------------------------------------------------------------
 using namespace Sqrat;
@@ -28,16 +29,7 @@ public:
 	std::string OwnerID;
 	std::string ParentID;
 
-	enum ChannelType {
-		CHANNEL_TYPE_NONE = -1,
-		SERVER_TEXT = 0,
-		DM = 1,
-		SERVER_VOICE = 2,
-		GROUP_DM = 3,
-		SERVER_CATEGORY = 4,
-		GUILD_NEWS = 5,
-		GUILD_STORE = 6
-	} Type = CHANNEL_TYPE_NONE;
+	ChannelType Type = CHANNEL_TYPE_NONE;
 
 	// ------------------------------------------------------------------------------------------------
 	Channel() = default;
@@ -70,7 +62,7 @@ public:
 	SQInteger GetType() const;
 
 	// ------------------------------------------------------------------------------------------------
-	std::string GetServerID() const;
+	CSStr GetServerID() const;
 
 	// ------------------------------------------------------------------------------------------------
 	int GetPosition() const;
