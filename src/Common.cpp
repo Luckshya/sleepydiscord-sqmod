@@ -8,7 +8,6 @@
 #endif // SQMOD_OS_WINDOWS
 // ------------------------------------------------------------------------------------------------
 #include <cstdarg>
-#include <cstring>
 
 // ------------------------------------------------------------------------------------------------
 namespace SqDiscord {
@@ -31,7 +30,7 @@ void SqThrowF(const SQChar *str, ...) {
 	// Write the requested contents
 	if (std::vsnprintf(g_Buffer, sizeof(g_Buffer), str, args) < 0) {
 		// Write a generic message at least
-		strcpy_s(g_Buffer, sizeof g_Buffer, "Unknown error has occurred");
+		strcpy(g_Buffer, "Unknown error has occurred");
 	}
 	// Finalize the argument list
 			va_end(args);
