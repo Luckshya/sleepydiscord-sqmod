@@ -11,6 +11,7 @@ Message::Message(SleepyDiscord::Message &message) {
 	ServerID = message.serverID;
 	Author = message.author;
 	Member = message.member;
+	Member.ID = message.author.ID;
 	Member.User = message.author;
 	Content = message.content;
 	Timestamp = message.timestamp;
@@ -71,7 +72,7 @@ LightObj Message::GetAuthor() {
 
 // ------------------------------------------------------------------------------------------------
 LightObj Message::GetMember() {
-	if (Member.ID.empty()) {
+	if (Member.JoinedAt.empty()) {
 		return LightObj{};
 	}
 
