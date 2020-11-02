@@ -18,7 +18,7 @@ endif()
 # Enable position independent code
 if (UNIX)
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-	set(USE_SYSTEM_CURL ON)
+	set(USE_SYSTEM_CURL OFF)
 	set(CMAKE_USE_OPENSSL ON)
 endif()
 
