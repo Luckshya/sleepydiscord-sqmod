@@ -1,7 +1,7 @@
 #pragma once
 
 // ------------------------------------------------------------------------------------------------
-#include <SqMod.h>
+#include <sqaddon.h>
 #include <sqrat.h>
 #include <vcmp.h>
 

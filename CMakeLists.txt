@@ -5,6 +5,7 @@ project(sleepydiscord-sqmod)
 option(FORCE_32BIT_BIN "Create a 32-bit executable binary if the compiler defaults to 64-bit." OFF)
 option(FORCE_DEBUG_BIN "Create debug binary." OFF)
 option(PLUGIN_DEVEL "Plugin development mode." ON)
+set(BUILD_SHARED_LIBS OFF)
 
 if(FORCE_DEBUG_BIN)
 	set(CMAKE_BUILD_TYPE Debug)
@@ -32,12 +33,6 @@ download_project(
 		UPDATE_DISCONNECTED 1
 )
 
-# Include VCMP library
-add_subdirectory(vcmp)
-# Include Squirrel library
-add_subdirectory(squirrel)
-# Include Squat library
-add_subdirectory(sqrat)
 # Include SDK library
 add_subdirectory(sdk)
 

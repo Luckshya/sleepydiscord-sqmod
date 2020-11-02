@@ -2,8 +2,8 @@ add_library(SqDiscord SHARED
         CDiscord.cpp
         CDiscord.h
         EventHandler.h
-	    Constants.h
-	    Constants.cpp
+        Constants.h
+        Constants.cpp
         Common.cpp
         Common.hpp
         Module.cpp
@@ -46,7 +46,7 @@ else ()
 endif ()
 
 # Link to base libraries
-target_link_libraries(SqDiscord VCMP SquirrelAPI Sqrat SqSDK sleepy-discord)
+target_link_libraries(SqDiscord SqAddSDK sleepy-discord)
 
 # Don't prefix the module binary.
 set_target_properties(SqDiscord PROPERTIES PREFIX "")
