@@ -33,6 +33,14 @@ download_project(
 		UPDATE_DISCONNECTED 1
 )
 
+download_project(
+		PROJ           sdk
+		GIT_REPOSITORY https://github.com/VCMP-SqMod/ModuleSDK.git
+		GIT_TAG        master
+		SOURCE_DIR     ${PROJECT_SOURCE_DIR}/sdk
+		UPDATE_DISCONNECTED 1
+)
+
 # Include SDK library
 add_subdirectory(sdk)
 
